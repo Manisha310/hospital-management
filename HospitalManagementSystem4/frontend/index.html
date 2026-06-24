@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hospital Management System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2><span>+</span> HMS</h2>
+      <small>Hospital Management System</small>
+    </div>
+    <ul class="nav-list">
+      <li><a href="index.html" class="active"><i class="bi bi-grid-1x2"></i> Dashboard</a></li>
+      <li><a href="patients.html"><i class="bi bi-person-plus"></i> Outpatients</a></li>
+      <li><a href="inpatients.html"><i class="bi bi-hospital"></i> Inpatients</a></li>
+      <li><a href="doctors.html"><i class="bi bi-person-badge"></i> Doctors</a></li>
+      <li><a href="appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a></li>
+      <li><a href="allocations.html"><i class="bi bi-door-open"></i> Allocations</a></li>
+      <li><a href="payments.html"><i class="bi bi-credit-card"></i> Payments</a></li>
+    </ul>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div>
+        <button class="mobile-toggle" id="mobileToggle"><i class="bi bi-list"></i></button>
+        <h1>Dashboard<small>Hospital Management Overview</small></h1>
+      </div>
+    </div>
+
+    <div id="alertMessage"></div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="info"><h3>--</h3><p>Outpatients</p></div></div>
+      <div class="stat-card"><div class="info"><h3>--</h3><p>Inpatients</p></div></div>
+      <div class="stat-card"><div class="info"><h3>--</h3><p>Doctors</p></div></div>
+      <div class="stat-card"><div class="info"><h3>--</h3><p>Appointments</p></div></div>
+      <div class="stat-card"><div class="info"><h3>--</h3><p>Allocations</p></div></div>
+      <div class="stat-card"><div class="info"><h3>--</h3><p>Payments</p></div></div>
+    </div>
+
+    <h5 style="font-weight:600;color:var(--dark);margin-bottom:16px;">Quick Access</h5>
+    <div class="quick-links">
+      <a href="patients.html" class="quick-link"><i class="bi bi-person-plus" style="color:var(--primary)"></i><span>Manage Outpatients</span></a>
+      <a href="inpatients.html" class="quick-link"><i class="bi bi-hospital" style="color:var(--success)"></i><span>Manage Inpatients</span></a>
+      <a href="doctors.html" class="quick-link"><i class="bi bi-person-badge" style="color:var(--warning)"></i><span>Manage Doctors</span></a>
+      <a href="appointments.html" class="quick-link"><i class="bi bi-calendar-check" style="color:#9333ea"></i><span>Manage Appointments</span></a>
+      <a href="allocations.html" class="quick-link"><i class="bi bi-door-open" style="color:#0891b2"></i><span>Room Allocations</span></a>
+      <a href="payments.html" class="quick-link"><i class="bi bi-credit-card" style="color:#dc2626"></i><span>Payments</span></a>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header"><h3>Recent Appointments</h3></div>
+          <div class="card-body p-0">
+            <div class="table-responsive"><table class="table" id="recentApptsTable"><thead><tr><th>ID</th><th>Patient</th><th>Doctor</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header"><h3>Available Doctors</h3></div>
+          <div class="card-body p-0">
+            <div class="table-responsive"><table class="table" id="availableDocsTable"><thead><tr><th>ID</th><th>Name</th><th>Specialization</th><th>Available</th></tr></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    async function loadDashboard() {
+      try {
+        const stats = await api.getDashboardStats();
+        document.getElementById('statsGrid').innerHTML = `
+          <div class="stat-card"><div class="icon blue"><i class="bi bi-person-plus"></i></div><div class="info"><h3>${stats.outPatients}</h3><p>Outpatients</p></div></div>
+          <div class="stat-card"><div class="icon green"><i class="bi bi-hospital"></i></div><div class="info"><h3>${stats.inPatients}</h3><p>Inpatients</p></div></div>
+          <div class="stat-card"><div class="icon orange"><i class="bi bi-person-badge"></i></div><div class="info"><h3>${stats.doctors}</h3><p>Doctors</p></div></div>
+          <div class="stat-card"><div class="icon purple"><i class="bi bi-calendar-check"></i></div><div class="info"><h3>${stats.appointments}</h3><p>Appointments</p></div></div>
+          <div class="stat-card"><div class="icon blue"><i class="bi bi-door-open"></i></div><div class="info"><h3>${stats.allocations || 0}</h3><p>Allocations</p></div></div>
+          <div class="stat-card"><div class="icon green"><i class="bi bi-credit-card"></i></div><div class="info"><h3>${stats.payments || 0}</h3><p>Payments</p></div></div>
+        `;
+
+        const apptsTbody = document.querySelector('#recentApptsTable tbody');
+        if (stats.recentAppointments && stats.recentAppointments.length) {
+          apptsTbody.innerHTML = stats.recentAppointments.map(a =>
+            `<tr><td>${a.appointmentId}</td><td>${a.patientId}</td><td>${a.doctorId}</td><td>${formatDate(a.appointmentDate)}</td></tr>`
+          ).join('');
+        } else {
+          apptsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No recent appointments</td></tr>';
+        }
+
+        const docsTbody = document.querySelector('#availableDocsTable tbody');
+        if (stats.doctorsList && stats.doctorsList.length) {
+          docsTbody.innerHTML = stats.doctorsList.map(d =>
+            `<tr><td>${d.doctorId}</td><td>${d.doctorName}</td><td>${d.specialization}</td><td>${d.availableDate || '-'}</td></tr>`
+          ).join('');
+        } else {
+          docsTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No doctors available</td></tr>';
+        }
+      } catch (e) {
+        loadMockDashboard();
+      }
+    }
+
+    /* Mock data fallback if server is not running */
+    function loadMockDashboard() {
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card"><div class="icon blue"><i class="bi bi-person-plus"></i></div><div class="info"><h3>24</h3><p>Outpatients</p></div></div>
+        <div class="stat-card"><div class="icon green"><i class="bi bi-hospital"></i></div><div class="info"><h3>12</h3><p>Inpatients</p></div></div>
+        <div class="stat-card"><div class="icon orange"><i class="bi bi-person-badge"></i></div><div class="info"><h3>8</h3><p>Doctors</p></div></div>
+        <div class="stat-card"><div class="icon purple"><i class="bi bi-calendar-check"></i></div><div class="info"><h3>18</h3><p>Appointments</p></div></div>
+        <div class="stat-card"><div class="icon blue"><i class="bi bi-door-open"></i></div><div class="info"><h3>5</h3><p>Allocations</p></div></div>
+        <div class="stat-card"><div class="icon green"><i class="bi bi-credit-card"></i></div><div class="info"><h3>12</h3><p>Payments</p></div></div>
+      `;
+      document.querySelector('#recentApptsTable tbody').innerHTML =
+        `<tr><td>APT101</td><td>PT101</td><td>DR5</td><td>24/06/2026</td></tr><tr><td>APT102</td><td>PT102</td><td>DR3</td><td>25/06/2026</td></tr><tr><td>APT103</td><td>PT103</td><td>DR7</td><td>26/06/2026</td></tr>`;
+      document.querySelector('#availableDocsTable tbody').innerHTML =
+        `<tr><td>DR3</td><td>Dr. Priya</td><td>Cardiology</td><td>25/06/2026</td></tr><tr><td>DR5</td><td>Dr. Rajesh</td><td>Neurology</td><td>24/06/2026</td></tr><tr><td>DR7</td><td>Dr. Meena</td><td>Pediatrics</td><td>26/06/2026</td></tr>`;
+    }
+  </script>
+</body>
+</html>

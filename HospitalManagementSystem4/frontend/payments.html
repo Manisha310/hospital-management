@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payments - HMS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header"><h2><span>+</span> HMS</h2><small>Hospital Management System</small></div>
+    <ul class="nav-list">
+      <li><a href="index.html"><i class="bi bi-grid-1x2"></i> Dashboard</a></li>
+      <li><a href="patients.html"><i class="bi bi-person-plus"></i> Outpatients</a></li>
+      <li><a href="inpatients.html"><i class="bi bi-hospital"></i> Inpatients</a></li>
+      <li><a href="doctors.html"><i class="bi bi-person-badge"></i> Doctors</a></li>
+      <li><a href="appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a></li>
+      <li><a href="allocations.html"><i class="bi bi-door-open"></i> Allocations</a></li>
+      <li><a href="payments.html" class="active"><i class="bi bi-credit-card"></i> Payments</a></li>
+    </ul>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div><button class="mobile-toggle" id="mobileToggle"><i class="bi bi-list"></i></button><h1>Payments<small>Manage payment records</small></h1></div>
+    </div>
+
+    <div id="alertMessage"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>All Payments</h3>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#payModal" onclick="openAddPayment()"><i class="bi bi-plus-lg"></i> Add Payment</button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table" id="payTable">
+            <thead><tr><th>ID</th><th>Patient</th><th>Type</th><th>Date</th><th>Mode</th><th>Bill</th><th>Doctor</th><th>Medicine</th><th>Room</th><th>Reg</th><th>Total</th><th>Actions</th></tr></thead>
+            <tbody id="payBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="payModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="payModalTitle">Add Payment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <form id="payForm" onsubmit="return savePayment(event)">
+          <div class="modal-body">
+            <input type="hidden" id="editPayId">
+            <div class="row">
+              <div class="col-md-6 mb-3"><label class="form-label">Patient ID</label>
+                <select class="form-select" id="payPatient" onchange="updatePayDetails()"><option value="">-- Select Patient --</option></select>
+              </div>
+              <div class="col-md-6 mb-3"><label class="form-label">Patient Name</label><input type="text" class="form-control" id="payName" readonly></div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3"><label class="form-label">Patient Type</label>
+                <select class="form-select" id="payType"><option value="OutPatient">OutPatient</option><option value="InPatient">InPatient</option></select>
+              </div>
+              <div class="col-md-4 mb-3"><label class="form-label">Payment Date</label><input type="date" class="form-control" id="payDate" required></div>
+              <div class="col-md-4 mb-3"><label class="form-label">Mode</label>
+                <select class="form-select" id="payMode"><option value="Cash">Cash</option><option value="Card">Card</option><option value="UPI">UPI</option><option value="Insurance">Insurance</option></select>
+              </div>
+            </div>
+            <hr><h6>Fee Breakdown</h6>
+            <div class="row">
+              <div class="col-md-3 mb-3"><label class="form-label">Doctor Fee</label><input type="number" step="0.01" class="form-control" id="payDocFee" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="col-md-3 mb-3"><label class="form-label">Medicine Fees</label><input type="number" step="0.01" class="form-control" id="payMedFee" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="col-md-3 mb-3"><label class="form-label">Room Fees</label><input type="number" step="0.01" class="form-control" id="payRoomFee" min="0" value="0" oninput="calcTotal()"></div>
+              <div class="col-md-3 mb-3"><label class="form-label">Registration Fee</label><input type="number" step="0.01" class="form-control" id="payRegFee" min="0" value="100" oninput="calcTotal()"></div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3"><label class="form-label">Bill Amount</label><input type="number" step="0.01" class="form-control" id="payBill" min="0" value="0"></div>
+              <div class="col-md-6 mb-3"><label class="form-label fw-bold" style="font-size:18px">Total: ₹<span id="payTotalDisplay">0.00</span></label>
+                <input type="hidden" id="payTotal"></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="paySaveBtn">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let payments = [];
+    let allPatients = [];
+
+    function calcTotal() {
+      const doc = parseFloat(document.getElementById('payDocFee').value) || 0;
+      const med = parseFloat(document.getElementById('payMedFee').value) || 0;
+      const room = parseFloat(document.getElementById('payRoomFee').value) || 0;
+      const reg = parseFloat(document.getElementById('payRegFee').value) || 0;
+      document.getElementById('payTotalDisplay').textContent = (doc + med + room + reg).toFixed(2);
+    }
+
+    async function loadPayments() {
+      const body = document.getElementById('payBody');
+      showLoading(body);
+      try {
+        payments = await api.getPayments();
+        renderPayments(payments);
+        const op = await api.getOutpatients();
+        const ip = await api.getInpatients();
+        allPatients = [...op, ...ip];
+        populateSelect('payPatient', allPatients, 'patientId', 'patientName');
+      } catch (e) {
+        allPatients = [
+          {patientId:'PT101',patientName:'Arun Kumar'},
+          {patientId:'PT102',patientName:'Priya Devi'},
+          {patientId:'IP201',patientName:'Ravi Shankar'},
+        ];
+        populateSelect('payPatient', allPatients, 'patientId', 'patientName');
+        loadMockPayments();
+      }
+    }
+
+    function updatePayDetails() {
+      const id = document.getElementById('payPatient').value;
+      const p = allPatients.find(x => x.patientId === id);
+      if (p) {
+        document.getElementById('payName').value = p.patientName;
+        document.getElementById('payType').value = id.startsWith('IP') ? 'InPatient' : 'OutPatient';
+      }
+    }
+
+    function renderPayments(data) {
+      const body = document.getElementById('payBody');
+      if (!data || data.length === 0) { showEmpty(body, 'No payments found'); return; }
+      body.innerHTML = data.map(p =>
+        `<tr>
+          <td><strong>${p.paymentId}</strong></td>
+          <td>${p.patientName || p.patientId}</td>
+          <td><span class="badge bg-secondary">${p.patientType || 'OP'}</span></td>
+          <td>${formatDate(p.paymentDate)}</td>
+          <td>${p.modeOfPayment || '-'}</td>
+          <td>₹${p.billAmount || 0}</td>
+          <td>₹${p.doctorFee || 0}</td>
+          <td>₹${p.medicineFees || 0}</td>
+          <td>₹${p.roomFees || 0}</td>
+          <td>₹${p.registrationFees || 0}</td>
+          <td><strong>₹${p.totalBill || 0}</strong></td>
+          <td>
+            <div class="action-group">
+              <button class="btn btn-outline-primary btn-sm" onclick="editPayment('${p.paymentId}')"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-outline-danger btn-sm" onclick="deletePayment('${p.paymentId}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </td>
+        </tr>`
+      ).join('');
+    }
+
+    function openAddPayment() {
+      document.getElementById('payModalTitle').textContent = 'Add Payment';
+      document.getElementById('paySaveBtn').textContent = 'Save';
+      document.getElementById('payForm').reset();
+      document.getElementById('editPayId').value = '';
+      document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('payRegFee').value = 100;
+      calcTotal();
+    }
+
+    async function editPayment(id) {
+      const p = payments.find(x => x.paymentId === id);
+      if (!p) return;
+      document.getElementById('payModalTitle').textContent = 'Edit Payment';
+      document.getElementById('paySaveBtn').textContent = 'Update';
+      document.getElementById('editPayId').value = id;
+      document.getElementById('payPatient').value = p.patientId || '';
+      document.getElementById('payName').value = p.patientName || '';
+      document.getElementById('payType').value = p.patientType || 'OutPatient';
+      document.getElementById('payDate').value = p.paymentDate || '';
+      document.getElementById('payMode').value = p.modeOfPayment || 'Cash';
+      document.getElementById('payDocFee').value = p.doctorFee || 0;
+      document.getElementById('payMedFee').value = p.medicineFees || 0;
+      document.getElementById('payRoomFee').value = p.roomFees || 0;
+      document.getElementById('payRegFee').value = p.registrationFees || 0;
+      document.getElementById('payBill').value = p.billAmount || 0;
+      calcTotal();
+      new bootstrap.Modal(document.getElementById('payModal')).show();
+    }
+
+    async function savePayment(e) {
+      e.preventDefault();
+      const data = {
+        patientId: document.getElementById('payPatient').value,
+        patientName: document.getElementById('payName').value,
+        patientType: document.getElementById('payType').value,
+        paymentDate: document.getElementById('payDate').value,
+        modeOfPayment: document.getElementById('payMode').value,
+        billAmount: parseFloat(document.getElementById('payBill').value) || 0,
+        doctorFee: parseFloat(document.getElementById('payDocFee').value) || 0,
+        medicineFees: parseFloat(document.getElementById('payMedFee').value) || 0,
+        roomFees: parseFloat(document.getElementById('payRoomFee').value) || 0,
+        registrationFees: parseFloat(document.getElementById('payRegFee').value) || 0,
+      };
+      const editId = document.getElementById('editPayId').value;
+      try {
+        if (editId) {
+          await api.updatePayment(editId, data);
+          showAlert('Payment updated');
+        } else {
+          await api.addPayment(data);
+          showAlert('Payment added');
+        }
+        bootstrap.Modal.getInstance(document.getElementById('payModal')).hide();
+        loadPayments();
+      } catch (e) {
+        showAlert('Error: ' + e.message, 'danger');
+      }
+    }
+
+    async function deletePayment(id) {
+      if (!confirm('Delete payment ' + id + '?')) return;
+      try {
+        await api.deletePayment(id);
+        showAlert('Payment deleted');
+        loadPayments();
+      } catch (e) {
+        showAlert('Error: ' + e.message, 'danger');
+      }
+    }
+
+    function loadMockPayments() {
+      payments = [
+        {paymentId:'PAY1',patientId:'PT101',patientName:'Arun Kumar',patientType:'OutPatient',paymentDate:'2026-06-24',modeOfPayment:'Cash',billAmount:1500,doctorFee:500,medicineFees:300,roomFees:0,registrationFees:100,totalBill:900},
+        {paymentId:'PAY2',patientId:'IP201',patientName:'Ravi Shankar',patientType:'InPatient',paymentDate:'2026-06-23',modeOfPayment:'Card',billAmount:25000,doctorFee:2000,medicineFees:5000,roomFees:15000,registrationFees:100,totalBill:22100},
+      ];
+      renderPayments(payments);
+    }
+  </script>
+</body>
+</html>

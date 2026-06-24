@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Allocations - HMS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-header"><h2><span>+</span> HMS</h2><small>Hospital Management System</small></div>
+    <ul class="nav-list">
+      <li><a href="index.html"><i class="bi bi-grid-1x2"></i> Dashboard</a></li>
+      <li><a href="patients.html"><i class="bi bi-person-plus"></i> Outpatients</a></li>
+      <li><a href="inpatients.html"><i class="bi bi-hospital"></i> Inpatients</a></li>
+      <li><a href="doctors.html"><i class="bi bi-person-badge"></i> Doctors</a></li>
+      <li><a href="appointments.html"><i class="bi bi-calendar-check"></i> Appointments</a></li>
+      <li><a href="allocations.html" class="active"><i class="bi bi-door-open"></i> Allocations</a></li>
+      <li><a href="payments.html"><i class="bi bi-credit-card"></i> Payments</a></li>
+    </ul>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div><button class="mobile-toggle" id="mobileToggle"><i class="bi bi-list"></i></button><h1>Room Allocations<small>Manage room allocation for inpatients</small></h1></div>
+    </div>
+
+    <div id="alertMessage"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>All Allocations</h3>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#alcModal" onclick="openAddAllocation()"><i class="bi bi-plus-lg"></i> Add Allocation</button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table" id="alcTable">
+            <thead><tr><th>ID</th><th>Patient</th><th>Room</th><th>Days</th><th>Actions</th></tr></thead>
+            <tbody id="alcBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="alcModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="alcModalTitle">Add Allocation</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <form id="alcForm" onsubmit="return saveAllocation(event)">
+          <div class="modal-body">
+            <input type="hidden" id="editAlcId">
+            <div class="mb-3"><label class="form-label">Patient ID</label>
+              <select class="form-select" id="alcPatient" required><option value="">-- Select --</option></select>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3"><label class="form-label">Room Number</label><input type="number" class="form-control" id="alcRoom" min="1" required></div>
+              <div class="col-md-6 mb-3"><label class="form-label">Days Admitted</label><input type="number" class="form-control" id="alcDays" min="1" value="1" required></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="alcSaveBtn">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let allocations = [];
+
+    async function loadAllocations() {
+      const body = document.getElementById('alcBody');
+      showLoading(body);
+      try {
+        allocations = await api.getAllocations();
+        renderAllocations(allocations);
+        const patients = await api.getInpatients();
+        populateSelect('alcPatient', patients, 'patientId', 'patientName');
+      } catch (e) {
+        const patients = [{patientId:'IP201',patientName:'Ravi Shankar'},{patientId:'IP202',patientName:'Lakshmi'}];
+        populateSelect('alcPatient', patients, 'patientId', 'patientName');
+        loadMockAllocations();
+      }
+    }
+
+    function loadAllocationsFallback() { loadAllocations(); }
+
+    function renderAllocations(data) {
+      const body = document.getElementById('alcBody');
+      if (!data || data.length === 0) { showEmpty(body, 'No allocations found'); return; }
+      body.innerHTML = data.map(a =>
+        `<tr>
+          <td><strong>${a.allocationId}</strong></td>
+          <td>${a.patientId}</td>
+          <td>${a.roomNumber}</td>
+          <td>${a.noOfDays || 0}</td>
+          <td>
+            <div class="action-group">
+              <button class="btn btn-outline-primary btn-sm" onclick="editAllocation('${a.allocationId}')"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-outline-danger btn-sm" onclick="deleteAllocation('${a.allocationId}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </td>
+        </tr>`
+      ).join('');
+    }
+
+    function openAddAllocation() {
+      document.getElementById('alcModalTitle').textContent = 'Add Allocation';
+      document.getElementById('alcSaveBtn').textContent = 'Save';
+      document.getElementById('alcForm').reset();
+      document.getElementById('editAlcId').value = '';
+    }
+
+    async function editAllocation(id) {
+      const a = allocations.find(x => x.allocationId === id);
+      if (!a) return;
+      document.getElementById('alcModalTitle').textContent = 'Edit Allocation';
+      document.getElementById('alcSaveBtn').textContent = 'Update';
+      document.getElementById('editAlcId').value = id;
+      document.getElementById('alcPatient').value = a.patientId;
+      document.getElementById('alcRoom').value = a.roomNumber;
+      document.getElementById('alcDays').value = a.noOfDays || 1;
+      new bootstrap.Modal(document.getElementById('alcModal')).show();
+    }
+
+    async function saveAllocation(e) {
+      e.preventDefault();
+      const data = {
+        patientId: document.getElementById('alcPatient').value,
+        roomNumber: parseInt(document.getElementById('alcRoom').value),
+        noOfDays: parseInt(document.getElementById('alcDays').value),
+      };
+      const editId = document.getElementById('editAlcId').value;
+      try {
+        if (editId) {
+          await api.updateAllocation(editId, data);
+          showAlert('Allocation updated');
+        } else {
+          await api.addAllocation(data);
+          showAlert('Allocation added');
+        }
+        bootstrap.Modal.getInstance(document.getElementById('alcModal')).hide();
+        loadAllocations();
+      } catch (e) {
+        showAlert('Error: ' + e.message, 'danger');
+      }
+    }
+
+    async function deleteAllocation(id) {
+      if (!confirm('Delete allocation ' + id + '?')) return;
+      try {
+        await api.deleteAllocation(id);
+        showAlert('Allocation deleted');
+        loadAllocations();
+      } catch (e) {
+        showAlert('Error: ' + e.message, 'danger');
+      }
+    }
+
+    function loadMockAllocations() {
+      allocations = [
+        {allocationId:'ALC1',patientId:'IP201',roomNumber:101,noOfDays:5},
+        {allocationId:'ALC2',patientId:'IP202',roomNumber:102,noOfDays:3},
+      ];
+      renderAllocations(allocations);
+    }
+  </script>
+</body>
+</html>
